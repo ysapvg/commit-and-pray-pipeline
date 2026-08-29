@@ -8,7 +8,7 @@ A simple DevOps project using **Go, GitHub, Docker, and Jenkins**.
 
 ## Architecture
 
-![Architecture Diagram](images/architecture.png)
+![Architecture Diagram](docs/images/architecture.png)
 
 ---
 
