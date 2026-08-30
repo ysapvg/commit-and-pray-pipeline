@@ -67,7 +67,9 @@ pipeline {
                     docker restart go-service
 
                     sleep 2
-                    exit 1  // Simulate a failure for testing rollback
+                    
+                    # Simulate a failure for testing rollback
+                    exit 1 
 
                     # Verify the new version
                     curl -f http://host.docker.internal:8080
