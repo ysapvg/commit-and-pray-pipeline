@@ -106,7 +106,112 @@ Expected response:
 
 # Part II — Deploy
 
-> **To be added.**
+This part continues from the Docker image built in Part I.
+
+The image created in Part I is used to run the Go service as a container.
+The main goal here is to test the container deployment and demonstrate a
+quick binary hotfix without rebuilding the Docker image.
+
+---
+
+## 4. Run the Container
+
+The image from Part I is run as a container with port `8080` exposed to the host.
+
+The container also uses the `unless-stopped` restart policy so Docker can
+restart it if the container exits unexpectedly.
+
+### Run Command
+
+`docker run -d --name go-service -p 8080:8080 --restart unless-stopped go-service:1.0.0`
+
+### Verification
+
+`docker ps`
+
+The container should be running and port `8080` should be available.
+
+The restart policy can also be checked with:
+
+`docker inspect -f "{{.HostConfig.RestartPolicy.Name}}" go-service`
+
+Expected result:
+
+`unless-stopped`
+
+![Container Deployment](docs/images/container-deployment.png)
+
+---
+
+## 5. Binary Hotfix
+
+For the hotfix scenario, the Docker image is kept as it is.
+
+Instead of rebuilding the image, a new Go binary is built and copied into
+the existing container.
+
+The `docker cp` approach is used because it is simple and quick for a small
+application fix.
+
+### Hotfix Flow
+
+Build new binary → Copy binary → Restart container → Verify
+
+### Before Hotfix
+
+The current application version is checked first.
+
+`curl http://localhost:8080`
+
+Expected:
+
+`Hello, DevOps! version=1.0.0`
+
+![Before Hotfix](images/before-hotfix.png)
+
+### Build the New Binary
+
+A new binary is built with the updated application version.
+
+The binary is built as a Linux static binary so it can run inside the
+existing container.
+
+### Binary Swap
+
+The new binary is copied into the existing container using `docker cp`.
+
+No new Docker image is created during this step.
+
+### Restart
+
+The existing container is restarted so it starts using the new binary.
+
+### After Hotfix
+
+The application is checked again after the restart.
+
+`curl http://localhost:8080`
+
+Expected:
+
+`Hello, DevOps! version=1.0.1`
+
+![Binary Swap](images/binary-swap.png)
+
+The version changes from `1.0.0` to `1.0.1` while the existing container is
+kept.
+
+---
+
+## Why `docker cp`?
+
+I chose `docker cp` because it is simple and fast for a small hotfix.
+
+The new binary can be copied into the existing container and restarted
+without rebuilding the Docker image or creating a new container.
+
+The downside is that the container filesystem becomes mutable, so this is
+better suited for quick hotfixes than normal deployments.
 
 ---
 
