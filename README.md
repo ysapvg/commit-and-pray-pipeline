@@ -217,6 +217,124 @@ better suited for quick hotfixes than normal deployments.
 
 # Part III — CI/CD with Jenkins
 
-> **To be added.**
+This part connects the build process from Part I and the deployment process
+from Part II into a single Jenkins pipeline.
+
+The pipeline automatically checks the source code, runs tests, builds a
+versioned Docker image, and triggers the binary replacement process during
+deployment.
+
+---
+
+## 7. Checkout
+
+Jenkins pulls the source code from the private GitHub repository using
+Jenkins Credentials.
+
+![Jenkins Checkout](docs/images/jenkins-checkout.png)
+
+---
+
+## 8. Test
+
+The pipeline runs:
+
+`go test ./...`
+
+The tests are executed before the build and deploy stages.
+
+If the tests fail, Jenkins stops the pipeline and does not continue to the
+next stages.
+
+![Jenkins Test](docs/images/jenkins-test.png)
+
+---
+
+## 9. Build Image
+
+After the tests pass, Jenkins gets the short Git commit hash using:
+
+`git rev-parse --short HEAD`
+
+The commit hash is used as the Docker image tag and is also injected into
+the application version using `-ldflags`.
+
+Example:
+
+`go-service:7d58d10`
+
+This makes each image easy to trace back to its source code commit.
+
+![Jenkins Build Image](docs/images/jenkins-build.png)
+
+---
+
+## 10. Deploy
+
+The deploy stage triggers the binary replacement mechanism from Part II.
+
+The new binary is taken from the newly built image, the current binary is
+backed up, and the new binary is copied into the existing container.
+
+The container is then restarted.
+
+![Jenkins Deploy](docs/images/jenkins-deploy.png)
+
+## 11. Verify
+
+After deployment, Jenkins checks the application response and confirms that
+the expected version is running.
+
+![Jenkins Verify](docs/images/jenkins-verify.png)
+
+## 11. Rollback
+
+The previous binary is backed up before the new binary is deployed.
+
+If the deployment or verification fails, Jenkins restores the previous
+binary and restarts the container.
+
+The pipeline is still marked as failed so the deployment issue is not hidden.
+
+### Rollback Flow
+
+Deploy → Failure → Restore Previous Binary → Restart → Verify
+
+![Jenkins Rollback](docs/images/jenkins-rollback.png)
+
+---
+
+## 12. Jenkins Credentials
+
+The GitHub access token is stored in Jenkins Credentials instead of being
+written directly into the Jenkinsfile.
+
+This keeps the credential outside the source code.
+
+![Jenkins Credentials](docs/images/jenkins-credentials.png)
+
+---
+
+## 13. Successful Pipeline
+
+The final pipeline completes all stages successfully:
+
+Checkout → Test → Build Image → Deploy → Verify
+
+![Successful Jenkins Pipeline](docs/images/jenkins-success.png)
+
+---
+
+## Part III Summary
+
+Part I prepares the Docker image.
+
+Part II provides the binary hotfix mechanism.
+
+Part III connects both parts into an automated Jenkins pipeline.
+
+The final flow is:
+
+GitHub → Jenkins → Test → Build Image → Binary Swap → Restart → Verify
 
 ---
