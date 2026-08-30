@@ -8,10 +8,12 @@ import (
 
 var version = "dev"
 
+func handler(w http.ResponseWriter, r *http.Request) {
+	fmt.Fprintf(w, "Hello, DevOps! version=%s\n", version)
+}
+
 func main() {
-	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprintf(w, "Hello, DevOps! version=%s\n", version)
-	})
+	http.HandleFunc("/", handler)
 
 	port := os.Getenv("PORT")
 	if port == "" {
