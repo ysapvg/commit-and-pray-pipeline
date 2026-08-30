@@ -5,6 +5,10 @@ pipeline {
         IMAGE = 'go-service'
     }
 
+    options {
+        skipDefaultCheckout()
+    }
+
     stages {
         // Get the source code from GitHub
         stage('Checkout') {
