@@ -2,12 +2,15 @@ pipeline {
     agent any
 
     stages {
+
+        // Get the source code from GitHub
         stage('Checkout') {
             steps {
                 checkout scm
             }
         }
 
+        // Run the Go tests before building
         stage('Test') {
             steps {
                 sh '''
@@ -22,73 +25,46 @@ pipeline {
                 '''
             }
         }
+
+        // Build and tag the Docker image using the Git commit hash
         stage('Build Image') {
             steps {
                 script {
                     env.VERSION = sh(
-                script: 'git rev-parse --short HEAD',
-                returnStdout: true
-            ).trim()
+                        script: 'git rev-parse --short HEAD',
+                        returnStdout: true
+                    ).trim()
 
                     sh """
-                docker build \
-                  --build-arg VERSION=${VERSION} \
-                  -t go-service:${VERSION} .
-            """
+                        docker build \
+                          --build-arg VERSION=${VERSION} \
+                          -t go-service:${VERSION} .
+                    """
                 }
             }
         }
+
+        // Replace the binary in the existing container and verify the deployment
         stage('Deploy') {
             steps {
                 sh '''
-            set -e
+                    set -e
 
-            docker create \
-              --name go-hotfix-builder \
-              golang:1.23
+                    # Get the binary from the newly built image
+                    docker create --name hotfix-source ${IMAGE}:${VERSION}
+                    docker cp hotfix-source:/app ./go_service_hotfix
+                    docker rm hotfix-source
 
-            docker start go-hotfix-builder
+                    # Backup current binary
+                    docker cp go-service:/app ./go_service_backup
 
-            docker cp main.go \
-              go-hotfix-builder:/src-main.go
+                    # Replace binary and restart
+                    docker cp go_service_hotfix go-service:/app
+                    docker restart go-service
 
-            docker cp go.mod \
-              go-hotfix-builder:/go.mod
-
-            docker exec \
-              -e VERSION="$VERSION" \
-              go-hotfix-builder \
-              sh -c '
-                mkdir -p /src &&
-                mv /src-main.go /src/main.go &&
-                mv /go.mod /src/go.mod &&
-                CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
-                go build \
-                -ldflags="-s -w -X main.version=$VERSION" \
-                -o /src/app /src/main.go
-              '
-
-            docker cp \
-              go-hotfix-builder:/src/app \
-              ./go_service_hotfix
-
-            docker rm -f go-hotfix-builder
-
-            docker cp \
-              go-service:/app \
-              ./go_service_backup
-
-            docker cp \
-              go_service_hotfix \
-              go-service:/app
-
-            docker restart go-service
-
-            sleep 2
-
-            curl -f \
-              http://host.docker.internal:8080
-        '''
+                    sleep 2
+                    curl -f http://host.docker.internal:8080
+                '''
             }
         }
     }
