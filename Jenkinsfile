@@ -11,7 +11,6 @@ pipeline {
     }
 
     stages {
-
         // Get the source code from GitHub
         stage('Checkout') {
             steps {
@@ -89,6 +88,9 @@ pipeline {
                     RESPONSE=$(curl -fsS http://host.docker.internal:8080)
 
                     echo "Response: $RESPONSE"
+
+                    # Simulate a deployment failure
+                    exit 1
 
                     if [ "$RESPONSE" != "Hello, DevOps! version=$VERSION" ]; then
                         echo "Verification failed"
