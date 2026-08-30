@@ -22,5 +22,21 @@ pipeline {
                 '''
             }
         }
+        stage('Build Image') {
+            steps {
+                script {
+                    env.VERSION = sh(
+                script: 'git rev-parse --short HEAD',
+                returnStdout: true
+            ).trim()
+
+                    sh """
+                docker build \
+                  --build-arg VERSION=${VERSION} \
+                  -t go-service:${VERSION} .
+            """
+                }
+            }
+        }
     }
 }
