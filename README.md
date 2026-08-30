@@ -167,7 +167,7 @@ Expected:
 
 `Hello, DevOps! version=1.0.0`
 
-![Before Hotfix](images/before-hotfix.png)
+![Before Hotfix](docs/images/before-hotfix.png)
 
 ### Build the New Binary
 
@@ -196,7 +196,7 @@ Expected:
 
 `Hello, DevOps! version=1.0.1`
 
-![Binary Swap](images/binary-swap.png)
+![Binary Swap](docs/images/binary-swap.png)
 
 The version changes from `1.0.0` to `1.0.1` while the existing container is
 kept.
