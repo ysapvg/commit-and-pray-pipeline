@@ -2,7 +2,7 @@ pipeline {
     agent any
 
     environment {
-    IMAGE = 'go-service'
+        IMAGE = 'go-service'
     }
 
     stages {
@@ -47,13 +47,14 @@ pipeline {
             }
         }
 
-        // Replace the binary in the existing container and verify the deployment
         stage('Deploy') {
             steps {
-                sh '''
+                script {
+                    try {
+                        sh '''
                     set -e
 
-                    # Get the binary from the newly built image
+                    # Get the binary from the new image
                     docker create --name hotfix-source ${IMAGE}:${VERSION}
                     docker cp hotfix-source:/app ./go_service_hotfix
                     docker rm hotfix-source
@@ -66,8 +67,23 @@ pipeline {
                     docker restart go-service
 
                     sleep 2
+
+                    # Verify the new version
                     curl -f http://host.docker.internal:8080
                 '''
+            } catch (err) {
+                        echo 'Deployment failed. Rolling back...'
+
+                        sh '''
+                    docker cp go_service_backup go-service:/app
+                    docker restart go-service
+                    sleep 2
+                    curl -f http://host.docker.internal:8080
+                '''
+
+                        throw err
+                    }
+                }
             }
         }
     }
