@@ -1,8 +1,11 @@
 pipeline {
     agent any
 
-    stages {
+    environment {
+    IMAGE = 'go-service'
+    }
 
+    stages {
         // Get the source code from GitHub
         stage('Checkout') {
             steps {
