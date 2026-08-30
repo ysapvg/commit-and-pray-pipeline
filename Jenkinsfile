@@ -87,9 +87,6 @@ pipeline {
 
                     echo "Response: $RESPONSE"
 
-                    # Simulate a deployment failure
-                    exit 1
-
                     if [ "$RESPONSE" != "Hello, DevOps! version=$VERSION" ]; then
                         echo "Verification failed"
                         exit 1

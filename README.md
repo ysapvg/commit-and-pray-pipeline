@@ -1,6 +1,6 @@
 # Commit And Pray
 
-> A small Go service with a CI/CD pipeline.  
+> A small Go service with a CI/CD pipeline.
 
 A simple DevOps project using **Go, GitHub, Docker, and Jenkins**.
 
@@ -18,29 +18,38 @@ A simple DevOps project using **Go, GitHub, Docker, and Jenkins**.
 
 The application is built using a multi-stage Dockerfile.
 
-The first stage is used to compile the Go application into a statically linked Linux binary.
+The first stage uses Go to compile the application into a statically linked
+Linux binary.
 
-The final stage uses `scratch` and contains only the compiled application binary.
+The final stage uses `scratch` and contains only the compiled application
+binary.
 
 ### Why `scratch`?
 
-`scratch` was chosen because the application can run as a standalone static binary and does not need a shell, package manager, Go toolchain, or additional runtime dependencies.
+`scratch` was chosen because the application can run as a standalone static
+binary and does not need a shell, package manager, Go toolchain, or additional
+runtime dependencies.
 
-This keeps the final image small and removes unnecessary components from the runtime image.
+This keeps the final image small and removes unnecessary components from the
+runtime image.
 
 ### Static Binary
 
-The binary is built with `CGO_ENABLED=0`, which allows it to run without depending on shared libraries from the builder environment.
+The binary is built with `CGO_ENABLED=0`, which avoids dependencies on shared
+libraries from the builder environment.
 
-The binary was also checked to verify that it does not depend on dynamic shared libraries.
+The binary was also checked to verify that it does not depend on dynamic
+shared libraries.
 
 ---
 
 ## 2. Version Injection
 
-The application version is injected during the build process using Go linker flags (`-ldflags`).
+The application version is injected during the build process using Go linker
+flags (`-ldflags`).
 
-The source code keeps the default version as `dev`, while the build process can provide a specific version.
+The source code keeps the default version as `dev`, while the build process
+can provide a specific version.
 
 For example:
 
@@ -62,7 +71,8 @@ The application then returns:
 
 ![Docker Image Size](docs/images/image-size.png)
 
-The final image only contains the compiled application binary because the Go compiler and build dependencies are left in the build stage.
+The final image only contains the compiled application binary because the
+Go compiler and build dependencies are left in the build stage.
 
 ---
 
@@ -82,23 +92,21 @@ Expected response:
 
 ![Application Test](docs/images/application-test.png)
 
----
+### Part I Screenshots
 
-## Part I Screenshots
-
-### Docker Build
+#### Docker Build
 
 ![Docker Build](docs/images/docker-build.png)
 
-### Image Size
+#### Image Size
 
 ![Image Size](docs/images/image-size.png)
 
-### Version Injection
+#### Version Injection
 
 ![Version Injection](docs/images/version-injection.png)
 
-### Static Binary Verification
+#### Static Binary Verification
 
 ![Static Binary Verification](docs/images/static-binary.png)
 
@@ -108,18 +116,18 @@ Expected response:
 
 This part continues from the Docker image built in Part I.
 
-The image created in Part I is used to run the Go service as a container.
-The main goal here is to test the container deployment and demonstrate a
-quick binary hotfix without rebuilding the Docker image.
+The image is used to run the Go service as a container. The main goal is to
+demonstrate a quick binary hotfix without rebuilding the Docker image.
 
 ---
 
-## 4. Run the Container
+## 5. Run the Container
 
-The image from Part I is run as a container with port `8080` exposed to the host.
+The image from Part I is run as a container with port `8080` exposed to the
+host.
 
-The container also uses the `unless-stopped` restart policy so Docker can
-restart it if the container exits unexpectedly.
+The `unless-stopped` restart policy is used so Docker can restart the
+container if the application process exits unexpectedly.
 
 ### Run Command
 
@@ -143,19 +151,19 @@ Expected result:
 
 ---
 
-## 5. Binary Hotfix
+## 6. Binary Hotfix
 
 For the hotfix scenario, the Docker image is kept as it is.
 
-Instead of rebuilding the image, a new Go binary is built and copied into
-the existing container.
+Instead of rebuilding the image, a new Go binary is built and copied into the
+existing container.
 
 The `docker cp` approach is used because it is simple and quick for a small
 application fix.
 
 ### Hotfix Flow
 
-Build new binary → Copy binary → Restart container → Verify
+Build New Binary → Binary Swap → Restart → Verify
 
 ### Before Hotfix
 
@@ -173,8 +181,8 @@ Expected:
 
 A new binary is built with the updated application version.
 
-The binary is built as a Linux static binary so it can run inside the
-existing container.
+The binary is built as a Linux static binary so it can run inside the existing
+container.
 
 ### Binary Swap
 
@@ -201,9 +209,13 @@ Expected:
 The version changes from `1.0.0` to `1.0.1` while the existing container is
 kept.
 
+### Hotfix Result
+
+![After Hotfix](docs/images/after-hotfix.png)
+
 ---
 
-## Why `docker cp`?
+## 7. Why `docker cp`?
 
 I chose `docker cp` because it is simple and fast for a small hotfix.
 
@@ -221,12 +233,11 @@ This part connects the build process from Part I and the deployment process
 from Part II into a single Jenkins pipeline.
 
 The pipeline automatically checks the source code, runs tests, builds a
-versioned Docker image, and triggers the binary replacement process during
-deployment.
+versioned Docker image, deploys the new binary, and verifies the result.
 
 ---
 
-## 7. Checkout
+## 8. Checkout
 
 Jenkins pulls the source code from the private GitHub repository using
 Jenkins Credentials.
@@ -235,7 +246,7 @@ Jenkins Credentials.
 
 ---
 
-## 8. Test
+## 9. Test
 
 The pipeline runs:
 
@@ -250,14 +261,14 @@ next stages.
 
 ---
 
-## 9. Build Image
+## 10. Build Image
 
 After the tests pass, Jenkins gets the short Git commit hash using:
 
 `git rev-parse --short HEAD`
 
-The commit hash is used as the Docker image tag and is also injected into
-the application version using `-ldflags`.
+The commit hash is used as the Docker image tag and is also injected into the
+application version using `-ldflags`.
 
 Example:
 
@@ -269,7 +280,19 @@ This makes each image easy to trace back to its source code commit.
 
 ---
 
-## 10. Deploy
+## 11. Push
+
+No container registry is used for this test.
+
+The Docker image is built locally in the Jenkins environment and used directly
+for deployment.
+
+If a registry is available, the image could be pushed to a registry such as
+Docker Hub or GitHub Container Registry using Jenkins Credentials.
+
+---
+
+## 12. Deploy
 
 The deploy stage triggers the binary replacement mechanism from Part II.
 
@@ -280,19 +303,27 @@ The container is then restarted.
 
 ![Jenkins Deploy](docs/images/jenkins-deploy.png)
 
-## 11. Verify
+### Deploy Flow
+
+Build Image → Backup Binary → Binary Swap → Restart
+
+---
+
+## 13. Verify
 
 After deployment, Jenkins checks the application response and confirms that
 the expected version is running.
 
 ![Jenkins Verify](docs/images/jenkins-verify.png)
 
-## 11. Rollback
+---
+
+## 14. Rollback
 
 The previous binary is backed up before the new binary is deployed.
 
 If the deployment or verification fails, Jenkins restores the previous
-binary and restarts the container.
+binary, restarts the container, and verifies the previous version again.
 
 The pipeline is still marked as failed so the deployment issue is not hidden.
 
@@ -304,7 +335,7 @@ Deploy → Failure → Restore Previous Binary → Restart → Verify
 
 ---
 
-## 12. Jenkins Credentials
+## 15. Jenkins Credentials
 
 The GitHub access token is stored in Jenkins Credentials instead of being
 written directly into the Jenkinsfile.
@@ -315,7 +346,7 @@ This keeps the credential outside the source code.
 
 ---
 
-## 13. Successful Pipeline
+## 16. Successful Pipeline
 
 The final pipeline completes all stages successfully:
 
@@ -335,6 +366,6 @@ Part III connects both parts into an automated Jenkins pipeline.
 
 The final flow is:
 
-GitHub → Jenkins → Test → Build Image → Binary Swap → Restart → Verify
+GitHub → Jenkins → Test → Build Image → Deploy → Verify
 
 ---
