@@ -5,6 +5,8 @@ WORKDIR /app
 
 COPY go.mod ./
 COPY main.go ./
+COPY main_test.go ./
+
 
 # Set the default version 
 ARG VERSION=dev
