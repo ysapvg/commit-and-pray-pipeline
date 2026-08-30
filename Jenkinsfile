@@ -55,25 +55,23 @@ pipeline {
         // Replace the binary in the existing container
         stage('Deploy') {
             steps {
-                script {
-                    env.DEPLOY_STARTED = 'true'
+                sh '''
+            touch .deploy-started
 
-                    sh '''
-                        set -e
+            set -e
 
-                        # Get the binary from the new image
-                        docker create --name hotfix-source ${IMAGE}:${VERSION}
-                        docker cp hotfix-source:/app ./go_service_hotfix
-                        docker rm hotfix-source
+            # Get the binary from the new image
+            docker create --name hotfix-source ${IMAGE}:${VERSION}
+            docker cp hotfix-source:/app ./go_service_hotfix
+            docker rm hotfix-source
 
-                        # Backup current binary
-                        docker cp go-service:/app ./go_service_backup
+            # Backup current binary
+            docker cp go-service:/app ./go_service_backup
 
-                        # Replace binary and restart
-                        docker cp go_service_hotfix go-service:/app
-                        docker restart go-service
-                    '''
-                }
+            # Replace binary and restart
+            docker cp go_service_hotfix go-service:/app
+            docker restart go-service
+        '''
             }
         }
 
@@ -104,17 +102,17 @@ pipeline {
     post {
         failure {
             script {
-                if (env.DEPLOY_STARTED == 'true') {
+                if (fileExists('.deploy-started')) {
                     echo 'Deployment failed. Rolling back...'
 
                     sh '''
-                        docker cp go_service_backup go-service:/app
-                        docker restart go-service
+                    docker cp go_service_backup go-service:/app
+                    docker restart go-service
 
-                        sleep 2
+                    sleep 2
 
-                        curl -fsS http://host.docker.internal:8080
-                    '''
+                    curl -fsS http://host.docker.internal:8080
+                '''
                 }
             }
         }
