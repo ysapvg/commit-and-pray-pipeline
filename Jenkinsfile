@@ -3,6 +3,7 @@ pipeline {
 
     environment {
         IMAGE = 'go-service'
+        DEPLOY_STARTED = 'false'
     }
 
     options {
@@ -10,6 +11,7 @@ pipeline {
     }
 
     stages {
+
         // Get the source code from GitHub
         stage('Checkout') {
             steps {
@@ -45,48 +47,72 @@ pipeline {
                     sh """
                         docker build \
                           --build-arg VERSION=${VERSION} \
-                          -t go-service:${VERSION} .
+                          -t ${IMAGE}:${VERSION} .
                     """
                 }
             }
         }
 
+        // Replace the binary in the existing container
         stage('Deploy') {
             steps {
                 script {
-                    try {
-                        sh '''
+                    env.DEPLOY_STARTED = 'true'
+
+                    sh '''
+                        set -e
+
+                        # Get the binary from the new image
+                        docker create --name hotfix-source ${IMAGE}:${VERSION}
+                        docker cp hotfix-source:/app ./go_service_hotfix
+                        docker rm hotfix-source
+
+                        # Backup current binary
+                        docker cp go-service:/app ./go_service_backup
+
+                        # Replace binary and restart
+                        docker cp go_service_hotfix go-service:/app
+                        docker restart go-service
+                    '''
+                }
+            }
+        }
+
+        // Verify that the expected version is running
+        stage('Verify') {
+            steps {
+                sh '''
                     set -e
 
-                    # Get the binary from the new image
-                    docker create --name hotfix-source ${IMAGE}:${VERSION}
-                    docker cp hotfix-source:/app ./go_service_hotfix
-                    docker rm hotfix-source
-
-                    # Backup current binary
-                    docker cp go-service:/app ./go_service_backup
-
-                    # Replace binary and restart
-                    docker cp go_service_hotfix go-service:/app
-                    docker restart go-service
-
                     sleep 2
 
-                    # Verify the new version
-                    curl -f http://host.docker.internal:8080
-                '''
-            } catch (err) {
-                        echo 'Deployment failed. Rolling back...'
+                    RESPONSE=$(curl -fsS http://host.docker.internal:8080)
 
-                        sh '''
-                    docker cp go_service_backup go-service:/app
-                    docker restart go-service
-                    sleep 2
-                    curl -f http://host.docker.internal:8080
-                '''
+                    echo "Response: $RESPONSE"
 
-                        throw err
-                    }
+                    if [ "$RESPONSE" != "Hello, DevOps! version=$VERSION" ]; then
+                        echo "Verification failed"
+                        exit 1
+                    fi
+                '''
+            }
+        }
+    }
+
+    post {
+        failure {
+            script {
+                if (env.DEPLOY_STARTED == 'true') {
+                    echo 'Deployment failed. Rolling back...'
+
+                    sh '''
+                        docker cp go_service_backup go-service:/app
+                        docker restart go-service
+
+                        sleep 2
+
+                        curl -fsS http://host.docker.internal:8080
+                    '''
                 }
             }
         }
