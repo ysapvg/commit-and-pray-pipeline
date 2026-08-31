@@ -209,10 +209,6 @@ Expected:
 The version changes from `1.0.0` to `1.0.1` while the existing container is
 kept.
 
-### Hotfix Result
-
-![After Hotfix](docs/images/after-hotfix.png)
-
 ---
 
 ## 7. Why `docker cp`?
